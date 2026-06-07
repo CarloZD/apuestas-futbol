@@ -1,18 +1,22 @@
 const mysql = require('mysql2');
 
-const conexion = mysql.createConnection({
+const pool = mysql.createPool({
     host: 'mysql',
     user: 'root',
-    password: '',
-    database: 'bd_mundial_predicciones'
+    password: 'root',
+    database: 'bd_mundial_predicciones',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-conexion.connect((error) => {
+pool.getConnection((error, connection) => {
     if (error) {
-        console.log('Error de conexión:', error);
+        console.log('Error de conexión:', error.code);
     } else {
-        console.log('Conectado a MySQL');
+        console.log('Conectado a MySQL ✅');
+        connection.release();
     }
 });
 
-module.exports = conexion;
+module.exports = pool;
