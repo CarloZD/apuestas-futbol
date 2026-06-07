@@ -18,16 +18,29 @@ services:
       - mysql_data:/var/lib/mysql
       - ./database:/docker-entrypoint-initdb.d
 
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build: ./backend
-
     container_name: api_mundial
 
     ports:
       - "3000:3000"
 
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: bd_mundial_predicciones
+      JWT_SECRET: clave_secreta_mundial
 
 volumes:
   mysql_data:

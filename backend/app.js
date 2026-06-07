@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 
@@ -12,8 +14,7 @@ const equiposRoutes = require('./routes/equipos.routes');
 const partidosRoutes = require('./routes/partidos.routes');
 const prediccionesRoutes = require('./routes/predicciones.routes');
 const rankingRoutes = require('./routes/ranking.routes');
-const authRoutes = require('./routes/auth.routes');  
-
+const authRoutes = require('./routes/auth.routes');
 
 app.use('/ranking', rankingRoutes);
 app.use('/predicciones', prediccionesRoutes);
