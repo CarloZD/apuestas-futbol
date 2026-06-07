@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_mundial
+    restart: always
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bd_mundial_predicciones
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+
+  backend:
+    build: ./backend
+
+    container_name: api_mundial
+
+    ports:
+      - "3000:3000"
+
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
