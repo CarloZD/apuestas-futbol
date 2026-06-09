@@ -9,7 +9,7 @@ import {
 
 export default function SalaDetails() {
     const { id } = useParams();
-    const { user, api } = useAuth();
+    const { user, api, refreshProfile } = useAuth();
     const [sala, setSala] = useState(null);
     const [activeTab, setActiveTab] = useState('ranking'); // ranking, partidos, miembros
     const [ranking, setRanking] = useState([]);
@@ -57,6 +57,7 @@ export default function SalaDetails() {
             // Cargar miembros
             const resMiembros = await api.get(`/salas/${id}/participantes`);
             setMiembros(resMiembros.data);
+            if (refreshProfile) refreshProfile();
         } catch (error) {
             toast.error('Error al cargar detalles de la sala.');
             navigate('/');
@@ -65,12 +66,48 @@ export default function SalaDetails() {
         }
     };
 
+    const fallbackCopyText = (text) => {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                setCopied(true);
+                toast.success('¡Código copiado!');
+                setTimeout(() => setCopied(false), 2000);
+            } else {
+                toast.error('No se pudo copiar el código.');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed', err);
+            toast.error('No se pudo copiar el código.');
+        }
+        document.body.removeChild(textArea);
+    };
+
     const handleCopyCode = () => {
         if (sala?.codigo_invitacion) {
-            navigator.clipboard.writeText(sala.codigo_invitacion);
-            setCopied(true);
-            toast.success('¡Código copiado!');
-            setTimeout(() => setCopied(false), 2000);
+            const textToCopy = sala.codigo_invitacion;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy)
+                    .then(() => {
+                        setCopied(true);
+                        toast.success('¡Código copiado!');
+                        setTimeout(() => setCopied(false), 2000);
+                    })
+                    .catch(err => {
+                        console.error('Fallback due to error:', err);
+                        fallbackCopyText(textToCopy);
+                    });
+            } else {
+                fallbackCopyText(textToCopy);
+            }
         }
     };
 
@@ -103,6 +140,7 @@ export default function SalaDetails() {
                 goles_visitante_pred: parseInt(pred.golesVisitante)
             });
             toast.success('Predicción registrada.');
+            if (refreshProfile) refreshProfile();
             
             // Recargar partidos y ranking
             const resPartidos = await api.get(`/salas/${id}/partidos`);
@@ -155,6 +193,14 @@ export default function SalaDetails() {
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center bg-neutral-950 border border-neutral-800 px-4 py-2.5 rounded-xl">
+                                <span className="text-xs text-neutral-500 mr-2 uppercase font-bold tracking-wide">Tu Saldo:</span>
+                                <span className="text-sm font-black text-white">{user?.puntos_saldo ?? 0} pts</span>
+                            </div>
+                            <div className="flex items-center bg-neutral-950 border border-neutral-800 px-4 py-2.5 rounded-xl">
+                                <span className="text-xs text-neutral-500 mr-2 uppercase font-bold tracking-wide">Acumulado:</span>
+                                <span className="text-sm font-black text-green-400">{user?.puntos_totales_acumulados ?? 0} pts</span>
+                            </div>
                             <div className="flex items-center bg-neutral-950 border border-neutral-800 px-4 py-2.5 rounded-xl">
                                 <span className="text-xs text-neutral-500 mr-2 uppercase font-bold tracking-wide">Código de Invitación:</span>
                                 <span className="text-sm font-mono font-bold text-white mr-3">{sala?.codigo_invitacion}</span>

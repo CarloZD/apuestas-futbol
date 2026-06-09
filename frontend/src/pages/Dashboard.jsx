@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
-    const { user, logout, api } = useAuth();
+    const { user, logout, api, refreshProfile } = useAuth();
     const [salas, setSalas] = useState([]);
     const [partidosGlobales, setPartidosGlobales] = useState([]);
     const [codigoJoin, setCodigoJoin] = useState('');
@@ -23,6 +23,7 @@ export default function Dashboard() {
 
     useEffect(() => {
         fetchSalas();
+        if (refreshProfile) refreshProfile();
     }, []);
 
     const fetchSalas = async () => {
@@ -69,6 +70,7 @@ export default function Dashboard() {
             toast.success(response.data.mensaje);
             setCodigoJoin('');
             fetchSalas();
+            if (refreshProfile) refreshProfile();
         } catch (error) {
             toast.error(error.response?.data?.mensaje || 'Error al unirse a la sala.');
         }
@@ -99,6 +101,7 @@ export default function Dashboard() {
             toast.success('Sala creada con éxito.');
             setShowCreateModal(false);
             fetchSalas();
+            if (refreshProfile) refreshProfile();
         } catch (error) {
             toast.error(error.response?.data?.mensaje || 'Error al crear la sala.');
         } finally {
@@ -123,6 +126,10 @@ export default function Dashboard() {
                     <span className="text-xl font-black tracking-wider text-white">APUESTAPP</span>
                 </div>
                 <div className="flex items-center gap-4">
+                    <div className="bg-neutral-800 px-3 py-1.5 rounded-xl border border-neutral-700 flex items-center gap-2">
+                        <span className="text-xs font-bold text-neutral-400">Saldo:</span>
+                        <span className="text-sm font-black text-white">{user?.puntos_saldo ?? 0} pts</span>
+                    </div>
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-semibold text-neutral-200">{user?.nombre}</p>
                         <p className="text-xs text-neutral-500 capitalize">{user?.rol.toLowerCase()}</p>
@@ -151,10 +158,28 @@ export default function Dashboard() {
                 {/* Header Welcome */}
                 <div className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-neutral-800 rounded-full blur-3xl opacity-10"></div>
-                    <h2 className="text-3xl font-black mb-2 text-white">Hola, {user?.nombre} 👋</h2>
-                    <p className="text-neutral-400 text-sm max-w-xl">
-                        Crea una sala de apuestas con tus amigos o únete a una existente usando un código de invitación. Pronostica los partidos antes del inicio para acumular puntos.
-                    </p>
+                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
+                        <div>
+                            <h2 className="text-3xl font-black mb-2 text-white">Hola, {user?.nombre} 👋</h2>
+                            <p className="text-neutral-400 text-sm max-w-xl">
+                                Crea una sala de apuestas con tus amigos o únete a una existente usando un código de invitación. Pronostica los partidos antes del inicio para acumular puntos.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 w-full lg:w-auto">
+                            <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-xl text-center min-w-[110px]">
+                                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1">Saldo</p>
+                                <p className="text-xl font-black text-white">{user?.puntos_saldo ?? 0} pts</p>
+                            </div>
+                            <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-xl text-center min-w-[110px]">
+                                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1">Acumulado</p>
+                                <p className="text-xl font-black text-green-400">{user?.puntos_totales_acumulados ?? 0} pts</p>
+                            </div>
+                            <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-xl text-center min-w-[110px]">
+                                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1">Predicciones</p>
+                                <p className="text-xl font-black text-neutral-300">{user?.predicciones_realizadas ?? 0}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

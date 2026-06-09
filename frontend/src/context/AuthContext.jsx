@@ -77,8 +77,20 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const refreshProfile = async () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const response = await api.get('/usuarios/perfil');
+                setUser(response.data);
+            } catch (error) {
+                console.error('Error al actualizar perfil:', error);
+            }
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout, api }}>
+        <AuthContext.Provider value={{ user, loading, login, register, logout, api, refreshProfile }}>
             {children}
         </AuthContext.Provider>
     );

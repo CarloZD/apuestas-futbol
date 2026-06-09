@@ -70,7 +70,8 @@ const login = (req, res) => {
                         id: usuario.id,
                         nombre: usuario.nombre,
                         correo: usuario.correo,
-                        rol: usuario.rol
+                        rol: usuario.rol,
+                        puntos_saldo: usuario.puntos_saldo
                     }
                 });
             } catch (err) {

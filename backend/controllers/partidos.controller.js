@@ -218,6 +218,7 @@ function actualizarRachaYRanking(usuarioId, salaId, done) {
     // 1. Obtener todas las predicciones del usuario de forma global en orden cronológico de los partidos
     const sqlPreds = `
         SELECT p.id, p.sala_id, p.goles_local_pred, p.goles_visitante_pred, p.puntos_base, p.bonus_anticipacion,
+               p.puntos_otorgados,
                pa.goles_local, pa.goles_visitante, pa.estado
         FROM prediccion p
         INNER JOIN partido pa ON p.partido_id = pa.id
@@ -249,6 +250,7 @@ function actualizarRachaYRanking(usuarioId, salaId, done) {
                 const bonusRacha = racha >= 3 ? 2 : 0;
                 updates.push({
                     id: pred.id,
+                    puntos_otorgados: parseInt(pred.puntos_otorgados || 0),
                     bonus_racha: bonusRacha,
                     puntos_totales: pred.puntos_base + pred.bonus_anticipacion + bonusRacha
                 });
@@ -256,6 +258,7 @@ function actualizarRachaYRanking(usuarioId, salaId, done) {
                 racha = 0; // Se corta la racha
                 updates.push({
                     id: pred.id,
+                    puntos_otorgados: parseInt(pred.puntos_otorgados || 0),
                     bonus_racha: 0,
                     puntos_totales: pred.puntos_base + pred.bonus_anticipacion
                 });
@@ -284,15 +287,36 @@ function actualizarRachaYRanking(usuarioId, salaId, done) {
             finalizarRankings();
         } else {
             updates.forEach(up => {
+                const diff = up.puntos_totales - up.puntos_otorgados;
                 conexion.query(
                     `UPDATE prediccion
-                     SET bonus_racha = $1, puntos_totales = $2
+                     SET bonus_racha = $1, puntos_totales = $2, puntos_otorgados = $2
                      WHERE id = $3`,
                     [up.bonus_racha, up.puntos_totales, up.id],
-                    () => {
-                        updatesCompletados++;
-                        if (updatesCompletados === updates.length) {
-                            finalizarRankings();
+                    (errPred) => {
+                        if (errPred) {
+                            console.error('Error al actualizar predicción en racha:', errPred);
+                        }
+
+                        if (diff !== 0) {
+                            conexion.query(
+                                `UPDATE usuario SET puntos_saldo = puntos_saldo + $1 WHERE id = $2`,
+                                [diff, usuarioId],
+                                (errUser) => {
+                                    if (errUser) {
+                                        console.error('Error al actualizar puntos_saldo de usuario en racha:', errUser);
+                                    }
+                                    updatesCompletados++;
+                                    if (updatesCompletados === updates.length) {
+                                        finalizarRankings();
+                                    }
+                                }
+                            );
+                        } else {
+                            updatesCompletados++;
+                            if (updatesCompletados === updates.length) {
+                                finalizarRankings();
+                            }
                         }
                     }
                 );

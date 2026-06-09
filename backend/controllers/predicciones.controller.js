@@ -94,30 +94,72 @@ const crear = (req, res) => {
                     return res.status(400).json({ mensaje: 'El partido ya ha comenzado según la hora programada' });
                 }
 
-                // 3. Calcular bono de anticipación (> 24h antes del partido)
-                const msDiferencia = fechaPartido.getTime() - ahora.getTime();
-                const horasAnticipacion = msDiferencia / (1000 * 60 * 60);
-                const bonusAnticipacion = horasAnticipacion > 24 ? 1 : 0;
-
-                // 4. Registrar o actualizar la predicción (usando ON CONFLICT para PostgreSQL)
-                const sqlUpsert = `
-                    INSERT INTO prediccion (usuario_id, sala_id, partido_id, goles_local_pred, goles_visitante_pred, bonus_anticipacion, puntos_totales, fecha_prediccion)
-                    VALUES ($1, $2, $3, $4, $5, $6, $6, CURRENT_TIMESTAMP)
-                    ON CONFLICT (usuario_id, sala_id, partido_id) DO UPDATE
-                    SET goles_local_pred = EXCLUDED.goles_local_pred,
-                        goles_visitante_pred = EXCLUDED.goles_visitante_pred,
-                        bonus_anticipacion = EXCLUDED.bonus_anticipacion,
-                        puntos_totales = EXCLUDED.bonus_anticipacion,
-                        fecha_prediccion = CURRENT_TIMESTAMP
-                    RETURNING id
-                `;
-
+                // 3. Verificar si ya existe una predicción para cobrar el saldo
                 conexion.query(
-                    sqlUpsert,
-                    [usuarioId, parseInt(sala_id), parseInt(partido_id), parseInt(goles_local_pred), parseInt(goles_visitante_pred), bonusAnticipacion],
-                    (error3, resultado) => {
-                        if (error3) return res.status(500).json({ mensaje: 'Error al registrar predicción', detalles: error3.message });
-                        res.status(201).json({ mensaje: 'Predicción registrada con éxito', id: resultado.rows[0].id });
+                    'SELECT id FROM prediccion WHERE usuario_id = $1 AND sala_id = $2 AND partido_id = $3',
+                    [usuarioId, parseInt(sala_id), parseInt(partido_id)],
+                    (errorCheck, checkPred) => {
+                        if (errorCheck) return res.status(500).json({ mensaje: 'Error al verificar predicción', detalles: errorCheck.message });
+
+                        const existePrediccion = checkPred.rows.length > 0;
+
+                        const ejecutarUpsert = () => {
+                            // Calcular bono de anticipación (> 24h antes del partido)
+                            const msDiferencia = fechaPartido.getTime() - ahora.getTime();
+                            const horasAnticipacion = msDiferencia / (1000 * 60 * 60);
+                            const bonusAnticipacion = horasAnticipacion > 24 ? 1 : 0;
+
+                            const sqlUpsert = `
+                                INSERT INTO prediccion (usuario_id, sala_id, partido_id, goles_local_pred, goles_visitante_pred, bonus_anticipacion, puntos_totales, fecha_prediccion)
+                                VALUES ($1, $2, $3, $4, $5, $6, $6, CURRENT_TIMESTAMP)
+                                ON CONFLICT (usuario_id, sala_id, partido_id) DO UPDATE
+                                SET goles_local_pred = EXCLUDED.goles_local_pred,
+                                    goles_visitante_pred = EXCLUDED.goles_visitante_pred,
+                                    bonus_anticipacion = EXCLUDED.bonus_anticipacion,
+                                    puntos_totales = EXCLUDED.bonus_anticipacion,
+                                    fecha_prediccion = CURRENT_TIMESTAMP
+                                RETURNING id
+                            `;
+
+                            conexion.query(
+                                sqlUpsert,
+                                [usuarioId, parseInt(sala_id), parseInt(partido_id), parseInt(goles_local_pred), parseInt(goles_visitante_pred), bonusAnticipacion],
+                                (error3, resultado) => {
+                                    if (error3) return res.status(500).json({ mensaje: 'Error al registrar predicción', detalles: error3.message });
+                                    res.status(201).json({ mensaje: 'Predicción registrada con éxito', id: resultado.rows[0].id });
+                                }
+                            );
+                        };
+
+                        if (!existePrediccion) {
+                            // Es una nueva predicción, verificar puntos del usuario
+                            conexion.query(
+                                'SELECT puntos_saldo FROM usuario WHERE id = $1',
+                                [usuarioId],
+                                (errorUser, resUser) => {
+                                    if (errorUser) return res.status(500).json({ mensaje: 'Error al verificar saldo del usuario', detalles: errorUser.message });
+                                    if (resUser.rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+
+                                    const puntosSaldo = resUser.rows[0].puntos_saldo;
+                                    if (puntosSaldo < 1) {
+                                        return res.status(400).json({ mensaje: 'No tienes suficientes puntos para realizar esta apuesta. Cada nueva predicción cuesta 1 punto. Tu saldo es: 0 puntos.' });
+                                    }
+
+                                    // Descontar 1 punto de su saldo
+                                    conexion.query(
+                                        'UPDATE usuario SET puntos_saldo = puntos_saldo - 1 WHERE id = $1',
+                                        [usuarioId],
+                                        (errorDeduct) => {
+                                            if (errorDeduct) return res.status(500).json({ mensaje: 'Error al descontar puntos', detalles: errorDeduct.message });
+                                            ejecutarUpsert();
+                                        }
+                                    );
+                                }
+                            );
+                        } else {
+                            // Ya existe, solo actualizar
+                            ejecutarUpsert();
+                        }
                     }
                 );
             });

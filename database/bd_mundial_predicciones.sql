@@ -10,12 +10,13 @@ CREATE TABLE IF NOT EXISTS usuario (
   password VARCHAR(255) NOT NULL,
   rol VARCHAR(20) DEFAULT 'USUARIO' CHECK (rol IN ('ADMIN', 'USUARIO')),
   activo BOOLEAN DEFAULT TRUE,
+  puntos_saldo INT DEFAULT 5,
   fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insertar únicamente el usuario Administrador (password: 123456)
-INSERT INTO usuario (id, nombre, correo, password, rol, activo) VALUES
-	(1, 'Carlos', 'carlos@gmail.com', '$2b$10$FevCoUdpKA8bfd8ZYM5hZuyMTbE3mMos4h3RXyQrzJAeu/fR1YYhm', 'ADMIN', TRUE)
+INSERT INTO usuario (id, nombre, correo, password, rol, activo, puntos_saldo) VALUES
+	(1, 'Carlos', 'carlos@gmail.com', '$2b$10$FevCoUdpKA8bfd8ZYM5hZuyMTbE3mMos4h3RXyQrzJAeu/fR1YYhm', 'ADMIN', TRUE, 5)
 ON CONFLICT (id) DO NOTHING;
 
 -- Tabla de Equipos
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS prediccion (
   bonus_anticipacion INT DEFAULT 0,
   bonus_racha INT DEFAULT 0,
   puntos_totales INT DEFAULT 0,
+  puntos_otorgados INT DEFAULT 0,
   acierto_ganador INT DEFAULT 0, -- 0 o 1
   CONSTRAINT fk_pred_usuario FOREIGN KEY (usuario_id) REFERENCES usuario (id) ON DELETE CASCADE,
   CONSTRAINT fk_pred_sala FOREIGN KEY (sala_id) REFERENCES sala (id) ON DELETE CASCADE,

@@ -2,8 +2,16 @@ const conexion = require('../config/database');
 
 const perfil = (req, res) => {
     const id = req.usuario.id;
+    const sql = `
+        SELECT 
+            u.id, u.nombre, u.correo, u.rol, u.puntos_saldo, u.fecha_registro,
+            COALESCE((SELECT SUM(puntos_totales) FROM prediccion WHERE usuario_id = u.id), 0) AS puntos_totales_acumulados,
+            COALESCE((SELECT COUNT(*) FROM prediccion WHERE usuario_id = u.id), 0) AS predicciones_realizadas
+        FROM usuario u
+        WHERE u.id = $1
+    `;
     conexion.query(
-        'SELECT id, nombre, correo, rol, fecha_registro FROM usuario WHERE id = $1',
+        sql,
         [id],
         (error, resultados) => {
             if (error) return res.status(500).json({ mensaje: 'Error al obtener perfil', detalles: error.message });
@@ -15,7 +23,7 @@ const perfil = (req, res) => {
 
 const listar = (req, res) => {
     conexion.query(
-        'SELECT id, nombre, correo, rol, activo, fecha_registro FROM usuario ORDER BY nombre ASC',
+        'SELECT id, nombre, correo, rol, activo, puntos_saldo, fecha_registro FROM usuario ORDER BY nombre ASC',
         (error, resultados) => {
             if (error) return res.status(500).json({ mensaje: 'Error al listar usuarios', detalles: error.message });
             res.json(resultados.rows);
@@ -26,7 +34,7 @@ const listar = (req, res) => {
 const obtenerPorId = (req, res) => {
     const id = parseInt(req.params.id);
     conexion.query(
-        'SELECT id, nombre, correo, rol, activo, fecha_registro FROM usuario WHERE id = $1',
+        'SELECT id, nombre, correo, rol, activo, puntos_saldo, fecha_registro FROM usuario WHERE id = $1',
         [id],
         (error, resultados) => {
             if (error) return res.status(500).json({ mensaje: 'Error al obtener usuario', detalles: error.message });
