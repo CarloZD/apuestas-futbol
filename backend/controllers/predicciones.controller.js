@@ -69,12 +69,12 @@ const crear = (req, res) => {
 
     // 1. Verificar que el partido esté habilitado para esta sala
     conexion.query(
-        'SELECT 1 FROM sala_partido WHERE sala_id = $1 AND partido_id = $2',
+        'SELECT 1 FROM sala WHERE id = $1 AND partido_id = $2',
         [parseInt(sala_id), parseInt(partido_id)],
         (error, checkSala) => {
             if (error) return res.status(500).json({ mensaje: 'Error al verificar sala', detalles: error.message });
             if (checkSala.rows.length === 0) {
-                return res.status(400).json({ mensaje: 'Este partido no está habilitado para ser predicho en esta sala' });
+                return res.status(400).json({ mensaje: 'Este partido no corresponde al partido asignado a esta sala' });
             }
 
             // 2. Verificar que el partido no haya comenzado

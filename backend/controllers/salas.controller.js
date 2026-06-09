@@ -2,14 +2,23 @@ const conexion = require('../config/database');
 
 const listar = (req, res) => {
     const usuarioId = req.usuario.id;
-    // Listar salas a las que pertenece el usuario
+    // Listar salas a las que pertenece el usuario con los datos de su único partido
     const sql = `
         SELECT s.*, u.nombre AS creador,
-               (SELECT COUNT(*) FROM miembro_sala WHERE sala_id = s.id) AS total_miembros,
-               (SELECT COUNT(*) FROM sala_partido WHERE sala_id = s.id) AS total_partidos
+               p.id AS partido_id,
+               el.nombre AS equipo_local,
+               el.bandera_url AS bandera_local,
+               ev.nombre AS equipo_visitante,
+               ev.bandera_url AS bandera_visitante,
+               p.fecha_partido,
+               p.estado AS partido_estado,
+               (SELECT COUNT(*) FROM miembro_sala WHERE sala_id = s.id) AS total_miembros
         FROM sala s
         INNER JOIN usuario u ON s.creador_id = u.id
         INNER JOIN miembro_sala ms ON ms.sala_id = s.id
+        INNER JOIN partido p ON s.partido_id = p.id
+        INNER JOIN equipo el ON p.equipo_local_id = el.id
+        INNER JOIN equipo ev ON p.equipo_visitante_id = ev.id
         WHERE ms.usuario_id = $1
         ORDER BY s.fecha_creacion DESC
     `;
@@ -21,32 +30,41 @@ const listar = (req, res) => {
 
 const obtenerPorId = (req, res) => {
     const salaId = parseInt(req.params.id);
-    conexion.query(
-        `SELECT s.*, u.nombre AS creador
-         FROM sala s
-         INNER JOIN usuario u ON s.creador_id = u.id
-         WHERE s.id = $1`,
-        [salaId],
-        (error, resultados) => {
-            if (error) return res.status(500).json({ mensaje: 'Error al obtener sala', detalles: error.message });
-            if (resultados.rows.length === 0) return res.status(404).json({ mensaje: 'Sala no encontrada' });
-            res.json(resultados.rows[0]);
-        }
-    );
+    const sql = `
+        SELECT s.*, u.nombre AS creador,
+               p.id AS partido_id,
+               el.nombre AS equipo_local,
+               el.bandera_url AS bandera_local,
+               ev.nombre AS equipo_visitante,
+               ev.bandera_url AS bandera_visitante,
+               p.fecha_partido,
+               p.estado AS partido_estado
+        FROM sala s
+        INNER JOIN usuario u ON s.creador_id = u.id
+        INNER JOIN partido p ON s.partido_id = p.id
+        INNER JOIN equipo el ON p.equipo_local_id = el.id
+        INNER JOIN equipo ev ON p.equipo_visitante_id = ev.id
+        WHERE s.id = $1
+    `;
+    conexion.query(sql, [salaId], (error, resultados) => {
+        if (error) return res.status(500).json({ mensaje: 'Error al obtener sala', detalles: error.message });
+        if (resultados.rows.length === 0) return res.status(404).json({ mensaje: 'Sala no encontrada' });
+        res.json(resultados.rows[0]);
+    });
 };
 
 const crear = (req, res) => {
-    const { nombre, codigo_invitacion, partidos } = req.body; // partidos: array de ids de partido
+    const { nombre, codigo_invitacion, partido_id } = req.body; // partido_id: ID del único partido
     const creador_id = req.usuario.id;
 
-    if (!nombre || !codigo_invitacion) {
-        return res.status(400).json({ mensaje: 'Faltan campos requeridos (nombre y código de invitación)' });
+    if (!nombre || !codigo_invitacion || !partido_id) {
+        return res.status(400).json({ mensaje: 'Faltan campos requeridos (nombre, código de invitación y partido)' });
     }
 
-    // Insertar la sala
+    // Insertar la sala con su respectivo partido_id
     conexion.query(
-        `INSERT INTO sala (nombre, codigo_invitacion, creador_id) VALUES ($1, $2, $3) RETURNING id`,
-        [nombre, codigo_invitacion, creador_id],
+        `INSERT INTO sala (nombre, codigo_invitacion, creador_id, partido_id) VALUES ($1, $2, $3, $4) RETURNING id`,
+        [nombre, codigo_invitacion, creador_id, parseInt(partido_id)],
         (error, resultado) => {
             if (error) {
                 if (error.code === '23505') {
@@ -63,32 +81,7 @@ const crear = (req, res) => {
                 [creador_id, salaId],
                 (error2) => {
                     if (error2) return res.status(500).json({ mensaje: 'Error al unirse a la sala como creador', detalles: error2.message });
-
-                    // Asociar partidos a la sala si se proporcionaron
-                    if (partidos && Array.isArray(partidos) && partidos.length > 0) {
-                        let inserts = partidos.map(partidoId => {
-                            return new Promise((resolve, reject) => {
-                                conexion.query(
-                                    `INSERT INTO sala_partido (sala_id, partido_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                                    [salaId, parseInt(partidoId)],
-                                    (err) => {
-                                        if (err) reject(err);
-                                        else resolve();
-                                    }
-                                );
-                            });
-                        });
-
-                        Promise.all(inserts)
-                            .then(() => {
-                                res.status(201).json({ mensaje: 'Sala creada y partidos asociados con éxito', id: salaId });
-                            })
-                            .catch(err => {
-                                res.status(201).json({ mensaje: 'Sala creada pero hubo un error al asociar los partidos', id: salaId, error: err.message });
-                            });
-                    } else {
-                        res.status(201).json({ mensaje: 'Sala creada con éxito sin partidos', id: salaId });
-                    }
+                    res.status(201).json({ mensaje: 'Sala creada con éxito', id: salaId });
                 }
             );
         }
@@ -167,6 +160,7 @@ const eliminar = (req, res) => {
     });
 };
 
+// Devuelve un arreglo con el único partido asociado a la sala y la predicción del usuario
 const partidosDeSala = (req, res) => {
     const salaId = parseInt(req.params.id);
     const usuarioId = req.usuario.id;
@@ -190,17 +184,16 @@ const partidosDeSala = (req, res) => {
             pr.bonus_anticipacion,
             pr.bonus_racha,
             pr.acierto_ganador
-        FROM sala_partido sp
-        INNER JOIN partido p ON sp.partido_id = p.id
+        FROM sala s
+        INNER JOIN partido p ON s.partido_id = p.id
         INNER JOIN equipo el ON p.equipo_local_id = el.id
         INNER JOIN equipo ev ON p.equipo_visitante_id = ev.id
-        LEFT JOIN prediccion pr ON pr.partido_id = p.id AND pr.sala_id = sp.sala_id AND pr.usuario_id = $1
-        WHERE sp.sala_id = $2
-        ORDER BY p.fecha_partido ASC
+        LEFT JOIN prediccion pr ON pr.partido_id = p.id AND pr.sala_id = s.id AND pr.usuario_id = $1
+        WHERE s.id = $2
     `;
 
     conexion.query(sql, [usuarioId, salaId], (error, resultados) => {
-        if (error) return res.status(500).json({ mensaje: 'Error al obtener partidos de la sala', detalles: error.message });
+        if (error) return res.status(500).json({ mensaje: 'Error al obtener partido de la sala', detalles: error.message });
         res.json(resultados.rows);
     });
 };

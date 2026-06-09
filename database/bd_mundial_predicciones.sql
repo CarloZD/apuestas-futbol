@@ -1,5 +1,5 @@
 -- --------------------------------------------------------
--- Esquema de Base de Datos para PostgreSQL
+-- Esquema de Base de Datos para PostgreSQL (Actualizado)
 -- --------------------------------------------------------
 
 -- Tabla de Usuarios
@@ -13,10 +13,10 @@ CREATE TABLE IF NOT EXISTS usuario (
   fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insertar datos iniciales para usuarios (password: 123456 en hash bcrypt si es necesario, o plano para pruebas rápidas)
--- Nota: En la aplicación real, estas contraseñas deben estar hasheadas con bcrypt.
+-- Insertar datos iniciales para usuarios (password: 123456)
 INSERT INTO usuario (id, nombre, correo, password, rol, activo) VALUES
-	(1, 'Carlos', 'carlos@gmail.com', '$2a$12$lotBagLNmsu/zT8VBhQCSuecHICTLZOKpdHIeFYgRkQ2pZIGcO4zq', 'ADMIN', TRUE)
+	(1, 'Carlos', 'carlos@gmail.com', '$2b$10$FevCoUdpKA8bfd8ZYM5hZuyMTbE3mMos4h3RXyQrzJAeu/fR1YYhm', 'ADMIN', TRUE),
+	(3, 'Luis', 'luis@gmail.com', '$2b$10$FevCoUdpKA8bfd8ZYM5hZuyMTbE3mMos4h3RXyQrzJAeu/fR1YYhm', 'USUARIO', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 -- Tabla de Equipos
@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS equipo (
   codigo_fifa VARCHAR(10) NOT NULL UNIQUE,
   bandera_url VARCHAR(255) DEFAULT NULL
 );
+
+-- Insertar datos iniciales para equipos
+INSERT INTO equipo (id, nombre, codigo_fifa, bandera_url) VALUES
+	(1, 'Argentina', 'ARG', 'https://flagcdn.com/w320/ar.png'),
+	(2, 'Brasil', 'BRA', 'https://flagcdn.com/w320/br.png'),
+	(3, 'España', 'ESP', 'https://flagcdn.com/w320/es.png')
+ON CONFLICT (id) DO NOTHING;
 
 -- Tabla de Partidos
 CREATE TABLE IF NOT EXISTS partido (
@@ -42,19 +49,28 @@ CREATE TABLE IF NOT EXISTS partido (
   CONSTRAINT fk_partido_visitante FOREIGN KEY (equipo_visitante_id) REFERENCES equipo (id) ON DELETE RESTRICT
 );
 
--- Tabla de Salas (Grupos)
+-- Insertar datos iniciales para partidos
+INSERT INTO partido (id, codigo_api, equipo_local_id, equipo_visitante_id, fecha_partido, estado, goles_local, goles_visitante, fecha_resultado) VALUES
+	(1, '2026-manual-01', 1, 2, '2026-07-10 20:00:00', 'FINALIZADO', 2, 1, '2026-06-06 18:02:24'),
+	(2, '2026-manual-02', 2, 3, '2026-07-15 20:00:00', 'PENDIENTE', NULL, NULL, NULL),
+	(3, '2026-manual-03', 1, 3, '2026-07-20 20:00:00', 'FINALIZADO', 2, 0, '2026-06-06 18:58:17')
+ON CONFLICT (id) DO NOTHING;
+
+-- Tabla de Salas (Grupos) - Cada sala corresponde a un único partido
 CREATE TABLE IF NOT EXISTS sala (
   id SERIAL PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
   codigo_invitacion VARCHAR(20) NOT NULL UNIQUE,
   creador_id INT NOT NULL,
+  partido_id INT NOT NULL,
   fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_sala_creador FOREIGN KEY (creador_id) REFERENCES usuario (id) ON DELETE CASCADE
+  CONSTRAINT fk_sala_creador FOREIGN KEY (creador_id) REFERENCES usuario (id) ON DELETE CASCADE,
+  CONSTRAINT fk_sala_partido FOREIGN KEY (partido_id) REFERENCES partido (id) ON DELETE CASCADE
 );
 
--- Insertar datos iniciales para salas
-INSERT INTO sala (id, nombre, codigo_invitacion, creador_id) VALUES
-	(1, 'Mundial Tecsup', 'TEC2026', 1)
+-- Insertar datos iniciales para salas (asociada al partido 1)
+INSERT INTO sala (id, nombre, codigo_invitacion, creador_id, partido_id) VALUES
+	(1, 'Mundial Tecsup', 'TEC2026', 1, 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- Tabla Relacional de Miembros de Sala
@@ -68,21 +84,11 @@ CREATE TABLE IF NOT EXISTS miembro_sala (
   CONSTRAINT ms_usuario_sala_unique UNIQUE (usuario_id, sala_id)
 );
 
--- Insertar datos iniciales para miembros de sala
+-- Insertar datos iniciales para miembros de sala (Carlos y Luis)
 INSERT INTO miembro_sala (id, usuario_id, sala_id, fecha_union) VALUES
 	(1, 1, 1, '2026-06-06 22:10:54'),
 	(2, 3, 1, '2026-06-06 22:10:54')
 ON CONFLICT (id) DO NOTHING;
-
--- Tabla Relacional de Partidos habilitados en una Sala
-CREATE TABLE IF NOT EXISTS sala_partido (
-  id SERIAL PRIMARY KEY,
-  sala_id INT NOT NULL,
-  partido_id INT NOT NULL,
-  CONSTRAINT fk_sp_sala FOREIGN KEY (sala_id) REFERENCES sala (id) ON DELETE CASCADE,
-  CONSTRAINT fk_sp_partido FOREIGN KEY (partido_id) REFERENCES partido (id) ON DELETE CASCADE,
-  CONSTRAINT sp_sala_partido_unique UNIQUE (sala_id, partido_id)
-);
 
 -- Tabla de Predicciones
 CREATE TABLE IF NOT EXISTS prediccion (
@@ -125,7 +131,7 @@ CREATE TABLE IF NOT EXISTS ranking (
   CONSTRAINT rank_sala_usuario_unique UNIQUE (sala_id, usuario_id)
 );
 
--- Tabla de Historial de Puntaje (Opcional, para auditorías de puntuación)
+-- Tabla de Historial de Puntaje
 CREATE TABLE IF NOT EXISTS historial_puntaje (
   id SERIAL PRIMARY KEY,
   usuario_id INT NOT NULL,
@@ -148,3 +154,4 @@ SELECT setval(pg_get_serial_sequence('partido', 'id'), COALESCE(MAX(id), 1)) FRO
 SELECT setval(pg_get_serial_sequence('sala', 'id'), COALESCE(MAX(id), 1)) FROM sala;
 SELECT setval(pg_get_serial_sequence('miembro_sala', 'id'), COALESCE(MAX(id), 1)) FROM miembro_sala;
 SELECT setval(pg_get_serial_sequence('prediccion', 'id'), COALESCE(MAX(id), 1)) FROM prediccion;
+SELECT setval(pg_get_serial_sequence('ranking', 'id'), COALESCE(MAX(id), 1)) FROM ranking;
