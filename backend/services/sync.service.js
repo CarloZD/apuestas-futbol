@@ -73,21 +73,38 @@ async function syncTeams() {
     }
 }
 
+// Normalizar nombres de equipos debido a discrepancias entre endpoints de la API
+function normalizeTeamName(name) {
+    if (!name) return '';
+    const norm = name.trim().toLowerCase();
+    const map = {
+        'korea republic': 'south korea',
+        'czechia': 'czech republic',
+        'usa': 'united states',
+        'türkiye': 'turkey',
+        "côte d'ivoire": 'ivory coast',
+        'cabo verde': 'cape verde',
+        'ir iran': 'iran',
+        'congo dr': 'dr congo'
+    };
+    return map[norm] || norm;
+}
+
 // Sincronizar Partidos
 async function syncMatches() {
     console.log('Iniciando sincronización de partidos...');
     try {
         // Asegurarse de que los equipos estén sincronizados primero
         await syncTeams();
-
+ 
         const url = 'https://api.zafronix.com/fifa/worldcup/v1/matches?year=2026';
         const response = await fetchFromApi(url);
-
+ 
         const matches = response.data;
         if (!Array.isArray(matches)) {
             throw new Error('La respuesta de partidos no contiene un arreglo data válido');
         }
-
+ 
         // Cargar mapa de equipos (nombre -> id y codigo -> id) para búsquedas rápidas
         const equipoMap = await new Promise((resolve, reject) => {
             conexion.query('SELECT id, nombre, codigo_fifa FROM equipo', (err, res) => {
@@ -100,24 +117,24 @@ async function syncMatches() {
                 resolve(map);
             });
         });
-
+ 
         let syncedCount = 0;
         let finalizadosParaProcesar = []; // guardar ids de partidos finalizados para recalcular predicciones
-
+ 
         for (const match of matches) {
             const codigoApi = match.id;
             const localNombre = match.homeTeam;
             const visitanteNombre = match.awayTeam;
             const fechaPartido = match.kickoffUtc || `${match.date}T${match.kickoff || '12:00'}:00.000Z`;
-
+ 
             if (!localNombre || !visitanteNombre) {
                 console.warn(`Saltando partido ${codigoApi}: Equipos del partido aún no definidos en la API.`);
                 continue;
             }
-
-            // Buscar IDs de equipos locales y visitantes
-            const equipoLocalId = equipoMap[localNombre.toLowerCase()];
-            const equipoVisitanteId = equipoMap[visitanteNombre.toLowerCase()];
+ 
+            // Buscar IDs de equipos locales y visitantes usando nombres normalizados
+            const equipoLocalId = equipoMap[normalizeTeamName(localNombre)];
+            const equipoVisitanteId = equipoMap[normalizeTeamName(visitanteNombre)];
 
             if (!equipoLocalId || !equipoVisitanteId) {
                 console.warn(`Saltando partido ${codigoApi}: No se encontraron los equipos (${localNombre} o ${visitanteNombre}) en la base de datos.`);

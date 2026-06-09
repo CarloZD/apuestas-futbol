@@ -13,12 +13,14 @@ COPY . .
 
 RUN pnpm run build
 
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
+# Stage 2: Serve with Node.js (No Nginx!)
+FROM node:22-alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/server.js ./server.js
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]
