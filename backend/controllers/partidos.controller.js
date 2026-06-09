@@ -2,19 +2,29 @@ const conexion = require('../config/database');
 
 // Lógica de cálculo de puntos base
 function calcularPuntos(predLocal, predVisitante, realLocal, realVisitante) {
-    if (predLocal === realLocal && predVisitante === realVisitante) {
+    const pl = parseInt(predLocal);
+    const pv = parseInt(predVisitante);
+    const rl = parseInt(realLocal);
+    const rv = parseInt(realVisitante);
+
+    if (isNaN(pl) || isNaN(pv) || isNaN(rl) || isNaN(rv)) {
+        console.warn('WARNING: calcularPuntos recibió valores inválidos/NaN:', { predLocal, predVisitante, realLocal, realVisitante });
+        return 0;
+    }
+
+    if (pl === rl && pv === rv) {
         return 5; // Acierto exacto
     }
 
     let puntos = 0;
-    const ganadorPred = predLocal > predVisitante ? 'L' : predLocal < predVisitante ? 'V' : 'E';
-    const ganadorReal = realLocal > realVisitante ? 'L' : realLocal < realVisitante ? 'V' : 'E';
+    const ganadorPred = pl > pv ? 'L' : pl < pv ? 'V' : 'E';
+    const ganadorReal = rl > rv ? 'L' : rl < rv ? 'V' : 'E';
 
     if (ganadorPred === ganadorReal) {
         puntos += 3; // Ganador correcto
 
-        const diferenciaPred = predLocal - predVisitante;
-        const diferenciaReal = realLocal - realVisitante;
+        const diferenciaPred = pl - pv;
+        const diferenciaReal = rl - rv;
         if (diferenciaPred === diferenciaReal) {
             puntos += 2; // Diferencia de goles correcta
         }
@@ -25,9 +35,19 @@ function calcularPuntos(predLocal, predVisitante, realLocal, realVisitante) {
 
 // Función auxiliar para comprobar si se acertó (ganador o exacto)
 function esPrediccionAcertada(predLocal, predVisitante, realLocal, realVisitante) {
-    if (predLocal === realLocal && predVisitante === realVisitante) return true;
-    const ganadorPred = predLocal > predVisitante ? 'L' : predLocal < predVisitante ? 'V' : 'E';
-    const ganadorReal = realLocal > realVisitante ? 'L' : realLocal < realVisitante ? 'V' : 'E';
+    const pl = parseInt(predLocal);
+    const pv = parseInt(predVisitante);
+    const rl = parseInt(realLocal);
+    const rv = parseInt(realVisitante);
+
+    if (isNaN(pl) || isNaN(pv) || isNaN(rl) || isNaN(rv)) {
+        console.warn('WARNING: esPrediccionAcertada recibió valores inválidos/NaN:', { predLocal, predVisitante, realLocal, realVisitante });
+        return false;
+    }
+
+    if (pl === rl && pv === rv) return true;
+    const ganadorPred = pl > pv ? 'L' : pl < pv ? 'V' : 'E';
+    const ganadorReal = rl > rv ? 'L' : rl < rv ? 'V' : 'E';
     return ganadorPred === ganadorReal;
 }
 
