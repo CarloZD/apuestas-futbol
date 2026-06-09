@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS usuario (
 
 -- Insertar únicamente el usuario Administrador (password: 123456)
 INSERT INTO usuario (id, nombre, correo, password, rol, activo, puntos_saldo) VALUES
-	(1, 'Carlos', 'carlos@gmail.com', '$2b$10$FevCoUdpKA8bfd8ZYM5hZuyMTbE3mMos4h3RXyQrzJAeu/fR1YYhm', 'ADMIN', TRUE, 5)
+	(1, 'José', 'jose@gmail.com', '$2b$10$FevCoUdpKA8bfd8ZYM5hZuyMTbE3mMos4h3RXyQrzJAeu/fR1YYhm', 'ADMIN', TRUE, 5),
+  (2, 'Carlos', 'carlos@gmail.com', '$2b$10$FevCoUdpKA8bfd8ZYM5hZuyMTbE3mMos4h3RXyQrzJAeu/fR1YYhm', 'ADMIN', TRUE, 5)
 ON CONFLICT (id) DO NOTHING;
 
 -- Tabla de Equipos
