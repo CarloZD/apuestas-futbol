@@ -109,7 +109,12 @@ async function syncMatches() {
             const localNombre = match.homeTeam;
             const visitanteNombre = match.awayTeam;
             const fechaPartido = match.kickoffUtc || `${match.date}T${match.kickoff || '12:00'}:00.000Z`;
-            
+
+            if (!localNombre || !visitanteNombre) {
+                console.warn(`Saltando partido ${codigoApi}: Equipos del partido aún no definidos en la API.`);
+                continue;
+            }
+
             // Buscar IDs de equipos locales y visitantes
             const equipoLocalId = equipoMap[localNombre.toLowerCase()];
             const equipoVisitanteId = equipoMap[visitanteNombre.toLowerCase()];
