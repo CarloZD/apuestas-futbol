@@ -244,12 +244,14 @@ async function syncMatches() {
 
                                 const acierto = (puntosBase >= 3) ? 1 : 0; // Ganador correcto es mínimo 3 puntos
 
+                                const totalPuntos = puntosBase + bonusAnticipacion + parseInt(pred.bonus_racha || 0);
+
                                 conexion.query(
                                     `UPDATE prediccion
                                      SET puntos_base = $1, bonus_anticipacion = $2, acierto_ganador = $3,
-                                         puntos_totales = $1 + $2 + bonus_racha
-                                     WHERE id = $4`,
-                                    [puntosBase, bonusAnticipacion, acierto, pred.id],
+                                         puntos_totales = $4
+                                     WHERE id = $5`,
+                                    [puntosBase, bonusAnticipacion, acierto, totalPuntos, pred.id],
                                     () => {
                                         actualizarRachaYRanking(pred.usuario_id, pred.sala_id, () => {
                                             completados++;

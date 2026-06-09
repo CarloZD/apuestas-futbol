@@ -198,8 +198,10 @@ export default function SalaDetails() {
                                 <span className="text-sm font-black text-white">{user?.puntos_saldo ?? 0} pts</span>
                             </div>
                             <div className="flex items-center bg-neutral-950 border border-neutral-800 px-4 py-2.5 rounded-xl">
-                                <span className="text-xs text-neutral-500 mr-2 uppercase font-bold tracking-wide">Acumulado:</span>
-                                <span className="text-sm font-black text-green-400">{user?.puntos_totales_acumulados ?? 0} pts</span>
+                                <span className="text-xs text-neutral-500 mr-2 uppercase font-bold tracking-wide">Mis Puntos:</span>
+                                <span className="text-sm font-black text-green-400">
+                                    {ranking.find(r => r.id === user?.id)?.puntos ?? 0} pts
+                                </span>
                             </div>
                             <div className="flex items-center bg-neutral-950 border border-neutral-800 px-4 py-2.5 rounded-xl">
                                 <span className="text-xs text-neutral-500 mr-2 uppercase font-bold tracking-wide">Código de Invitación:</span>

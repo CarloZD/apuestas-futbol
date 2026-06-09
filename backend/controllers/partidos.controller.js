@@ -206,13 +206,15 @@ function calcularPuntajesInterno(partidoId, callback) {
                         partido.goles_local, partido.goles_visitante
                     ) ? 1 : 0;
 
+                    const totalPuntos = puntosBase + bonusAnticipacion + parseInt(pred.bonus_racha || 0);
+
                     // Actualizar esta predicción con puntos base, anticipación y acierto
                     conexion.query(
                         `UPDATE prediccion
                          SET puntos_base = $1, bonus_anticipacion = $2, acierto_ganador = $3,
-                             puntos_totales = $1 + $2 + bonus_racha
-                         WHERE id = $4`,
-                        [puntosBase, bonusAnticipacion, acierto, pred.id],
+                             puntos_totales = $4
+                         WHERE id = $5`,
+                        [puntosBase, bonusAnticipacion, acierto, totalPuntos, pred.id],
                         (err) => {
                             if (err) {
                                 console.error('Error al actualizar predicción:', err);

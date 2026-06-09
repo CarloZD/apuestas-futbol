@@ -1,23 +1,43 @@
-const pool = require('../backend/config/database');
+const { Pool } = require('../backend/node_modules/pg');
 
-async function test() {
-    try {
-        const resPred = await pool.query('SELECT * FROM prediccion');
-        console.log('--- PREDICCIONES ---');
-        console.log(resPred.rows);
+const passwords = ['root', 'postgres', 'admin', '123456', '', 'postgreSQL'];
 
-        const resPartidos = await pool.query('SELECT * FROM partido');
-        console.log('--- PARTIDOS ---');
-        console.log(resPartidos.rows);
+async function tryConnect() {
+    for (const pwd of passwords) {
+        console.log(`Intentando conectar con contraseña: "${pwd}"`);
+        const pool = new Pool({
+            host: 'localhost',
+            user: 'postgres',
+            password: pwd,
+            database: 'bd_mundial_predicciones',
+            port: 5432,
+            connectionTimeoutMillis: 1000
+        });
 
-        const resUsers = await pool.query('SELECT * FROM usuario');
-        console.log('--- USUARIOS ---');
-        console.log(resUsers.rows);
-    } catch (err) {
-        console.error(err);
-    } finally {
-        pool.end();
+        try {
+            const client = await pool.connect();
+            console.log(`¡Conectado exitosamente con contraseña: "${pwd}"!`);
+            
+            const resPred = await client.query('SELECT * FROM prediccion');
+            console.log('--- PREDICCIONES ---');
+            console.log(resPred.rows);
+
+            const resPartidos = await client.query('SELECT * FROM partido');
+            console.log('--- PARTIDOS ---');
+            console.log(resPartidos.rows);
+
+            const resUsers = await client.query('SELECT * FROM usuario');
+            console.log('--- USUARIOS ---');
+            console.log(resUsers.rows);
+
+            client.release();
+            pool.end();
+            return;
+        } catch (err) {
+            console.log(`Fallo con "${pwd}": ${err.message}`);
+            pool.end();
+        }
     }
 }
 
-test();
+tryConnect();
