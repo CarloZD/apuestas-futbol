@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS miembro_sala (
 
 -- Insertar datos iniciales para miembros de sala
 INSERT INTO miembro_sala (id, usuario_id, sala_id, fecha_union) VALUES
+	(1, 1, 1, '2026-06-06 22:10:54'),
 	(2, 3, 1, '2026-06-06 22:10:54')
 ON CONFLICT (id) DO NOTHING;
 
