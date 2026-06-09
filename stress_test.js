@@ -116,7 +116,7 @@ async function run() {
                 const salaRes = await makeRequest('POST', '/salas', {
                     nombre: 'Sala Stress Test',
                     codigo_invitacion: codigoInvitacion,
-                    partidos: [partidoId]
+                    partido_id: partidoId
                 }, adminToken);
                 salaId = salaRes.data.id;
                 console.log(`[Setup] Sala de estrés creada. ID: ${salaId}, Código: ${codigoInvitacion}`);

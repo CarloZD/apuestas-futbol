@@ -213,19 +213,19 @@ function calcularPuntajesInterno(partidoId, callback) {
     });
 }
 
-// Función para recalcular la racha cronológica de un usuario en una sala y actualizar su ranking
+// Función para recalcular la racha cronológica de un usuario de forma global y actualizar su ranking en cada sala
 function actualizarRachaYRanking(usuarioId, salaId, done) {
-    // 1. Obtener todas las predicciones del usuario en esa sala en orden cronológico del partido
+    // 1. Obtener todas las predicciones del usuario de forma global en orden cronológico de los partidos
     const sqlPreds = `
-        SELECT p.id, p.goles_local_pred, p.goles_visitante_pred, p.puntos_base, p.bonus_anticipacion,
+        SELECT p.id, p.sala_id, p.goles_local_pred, p.goles_visitante_pred, p.puntos_base, p.bonus_anticipacion,
                pa.goles_local, pa.goles_visitante, pa.estado
         FROM prediccion p
         INNER JOIN partido pa ON p.partido_id = pa.id
-        WHERE p.usuario_id = $1 AND p.sala_id = $2 AND pa.estado = 'FINALIZADO'
+        WHERE p.usuario_id = $1 AND pa.estado = 'FINALIZADO'
         ORDER BY pa.fecha_partido ASC
     `;
 
-    conexion.query(sqlPreds, [usuarioId, salaId], (err, resPreds) => {
+    conexion.query(sqlPreds, [usuarioId], (err, resPreds) => {
         if (err) {
             console.error('Error al obtener predicciones para racha:', err);
             return done();
@@ -233,12 +233,15 @@ function actualizarRachaYRanking(usuarioId, salaId, done) {
 
         let racha = 0;
         let updates = [];
+        const salasAfectadas = new Set();
+        if (salaId) salasAfectadas.add(salaId);
 
         resPreds.rows.forEach(pred => {
             const acierto = esPrediccionAcertada(
                 pred.goles_local_pred, pred.goles_visitante_pred,
                 pred.goles_local, pred.goles_visitante
             );
+            salasAfectadas.add(pred.sala_id);
 
             if (acierto) {
                 racha++;
@@ -259,10 +262,26 @@ function actualizarRachaYRanking(usuarioId, salaId, done) {
             }
         });
 
-        // Ejecutar las actualizaciones de racha de forma secuencial o simultánea
+        const finalizarRankings = () => {
+            const arraySalas = Array.from(salasAfectadas);
+            if (arraySalas.length === 0) {
+                return done();
+            }
+            let rankingsActualizados = 0;
+            arraySalas.forEach(sId => {
+                actualizarFilaRanking(usuarioId, sId, () => {
+                    rankingsActualizados++;
+                    if (rankingsActualizados === arraySalas.length) {
+                        done();
+                    }
+                });
+            });
+        };
+
+        // Ejecutar las actualizaciones de racha de forma secuencial
         let updatesCompletados = 0;
         if (updates.length === 0) {
-            actualizarFilaRanking(usuarioId, salaId, done);
+            finalizarRankings();
         } else {
             updates.forEach(up => {
                 conexion.query(
@@ -273,7 +292,7 @@ function actualizarRachaYRanking(usuarioId, salaId, done) {
                     () => {
                         updatesCompletados++;
                         if (updatesCompletados === updates.length) {
-                            actualizarFilaRanking(usuarioId, salaId, done);
+                            finalizarRankings();
                         }
                     }
                 );

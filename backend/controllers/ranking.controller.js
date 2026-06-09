@@ -29,17 +29,17 @@ const porSala = (req, res) => {
         
         const rankingRows = resultados.rows;
         
-        // Calcular la racha actual activa para cada participante de la sala
+        // Calcular la racha actual activa para cada participante de la sala (global)
         const promises = rankingRows.map(row => {
             return new Promise((resolve) => {
                 const streakSql = `
                     SELECT p.goles_local_pred, p.goles_visitante_pred, pa.goles_local, pa.goles_visitante
                     FROM prediccion p
                     INNER JOIN partido pa ON p.partido_id = pa.id
-                    WHERE p.usuario_id = $1 AND p.sala_id = $2 AND pa.estado = 'FINALIZADO'
+                    WHERE p.usuario_id = $1 AND pa.estado = 'FINALIZADO'
                     ORDER BY pa.fecha_partido DESC
                 `;
-                conexion.query(streakSql, [row.id, salaId], (err, streakRes) => {
+                conexion.query(streakSql, [row.id], (err, streakRes) => {
                     if (err) {
                         row.racha_actual = 0;
                         return resolve();

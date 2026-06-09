@@ -130,23 +130,28 @@ async function syncMatches() {
             // Upsert partido en PostgreSQL
             const partidoId = await new Promise((resolve, reject) => {
                 // Verificar si existe
-                conexion.query('SELECT id, estado FROM partido WHERE codigo_api = $1', [codigoApi], (err, selectRes) => {
+                conexion.query('SELECT id, estado, fecha_resultado FROM partido WHERE codigo_api = $1', [codigoApi], (err, selectRes) => {
                     if (err) return reject(err);
 
                     if (selectRes.rows.length > 0) {
                         const partidoExistente = selectRes.rows[0];
-                        // Si ya estaba finalizado, solo actualizar (pero no es necesario volver a calcular puntos)
+                        // Si ya estaba finalizado, mantener la fecha o asignarla si acaba de finalizar
+                        let fechaResultado = partidoExistente.fecha_resultado;
+                        if (estado === 'FINALIZADO' && !fechaResultado) {
+                            fechaResultado = new Date();
+                        }
+                        
                         const sqlUpdate = `
                             UPDATE partido
                             SET equipo_local_id = $1, equipo_visitante_id = $2, fecha_partido = $3,
-                                goles_local = $4, goles_visitante = $5, estado = $6::varchar,
-                                fecha_resultado = CASE WHEN $6::varchar = 'FINALIZADO' AND fecha_resultado IS NULL THEN CURRENT_TIMESTAMP ELSE fecha_resultado END
-                            WHERE codigo_api = $7::varchar
+                                goles_local = $4, goles_visitante = $5, estado = $6,
+                                fecha_resultado = $7
+                            WHERE codigo_api = $8
                             RETURNING id
                         `;
                         conexion.query(
                             sqlUpdate,
-                            [equipoLocalId, equipoVisitanteId, fechaPartido, golesLocal, golesVisitante, estado, codigoApi],
+                            [equipoLocalId, equipoVisitanteId, fechaPartido, golesLocal, golesVisitante, estado, fechaResultado, codigoApi],
                             (err2, updateRes) => {
                                 if (err2) return reject(err2);
                                 
@@ -159,14 +164,15 @@ async function syncMatches() {
                         );
                     } else {
                         // Insertar partido nuevo
+                        const fechaResultado = estado === 'FINALIZADO' ? new Date() : null;
                         const sqlInsert = `
                             INSERT INTO partido (codigo_api, equipo_local_id, equipo_visitante_id, fecha_partido, goles_local, goles_visitante, estado, fecha_resultado)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $7 = 'FINALIZADO' THEN CURRENT_TIMESTAMP ELSE NULL END)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                             RETURNING id
                         `;
                         conexion.query(
                             sqlInsert,
-                            [codigoApi, equipoLocalId, equipoVisitanteId, fechaPartido, golesLocal, golesVisitante, estado],
+                            [codigoApi, equipoLocalId, equipoVisitanteId, fechaPartido, golesLocal, golesVisitante, estado, fechaResultado],
                             (err2, insertRes) => {
                                 if (err2) return reject(err2);
                                 const newId = insertRes.rows[0].id;
