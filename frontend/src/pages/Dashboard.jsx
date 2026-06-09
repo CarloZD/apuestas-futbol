@@ -76,16 +76,16 @@ export default function Dashboard() {
 
     const handleTogglePartido = (id) => {
         if (partidosSeleccionados.includes(id)) {
-            setPartidosSeleccionados(partidosSeleccionados.filter(pid => pid !== id));
+            setPartidosSeleccionados([]);
         } else {
-            setPartidosSeleccionados([...partidosSeleccionados, id]);
+            setPartidosSeleccionados([id]); // Solo permitir uno
         }
     };
 
     const handleCreateSala = async (e) => {
         e.preventDefault();
-        if (!nombreSala.trim() || !codigoSala.trim()) {
-            toast.error('Completa los campos requeridos.');
+        if (!nombreSala.trim() || !codigoSala.trim() || partidosSeleccionados.length === 0) {
+            toast.error('Completa los campos requeridos y selecciona un partido.');
             return;
         }
 
@@ -94,7 +94,7 @@ export default function Dashboard() {
             await api.post('/salas', {
                 nombre: nombreSala,
                 codigo_invitacion: codigoSala,
-                partidos: partidosSeleccionados
+                partido_id: partidosSeleccionados[0]
             });
             toast.success('Sala creada con éxito.');
             setShowCreateModal(false);
@@ -324,15 +324,8 @@ export default function Dashboard() {
                             <div>
                                 <div className="flex items-center justify-between mb-3">
                                     <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">
-                                        Selecciona los Partidos ({partidosSeleccionados.length} seleccionados)
+                                        Selecciona el Partido del Mundial
                                     </label>
-                                    <button
-                                        type="button"
-                                        onClick={handleSelectAllPartidos}
-                                        className="text-xs text-neutral-300 hover:text-white font-bold underline cursor-pointer"
-                                    >
-                                        {partidosSeleccionados.length === partidosGlobales.length ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
-                                    </button>
                                 </div>
 
                                 {loadingPartidos ? (
