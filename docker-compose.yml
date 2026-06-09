@@ -1,0 +1,49 @@
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: db_mundial_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: bd_mundial_predicciones
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bd_mundial_predicciones"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: api_mundial_postgres
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: root
+      DB_NAME: bd_mundial_predicciones
+      JWT_SECRET: clave_secreta_mundial
+
+  frontend:
+    build: ./frontend
+    container_name: web_mundial
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
